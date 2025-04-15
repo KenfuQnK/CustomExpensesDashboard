@@ -1,0 +1,8 @@
+# .gitignore
+node_modules/
+.DS_Store
+*.log
+python/
+
+config.json
+transactions.json

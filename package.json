@@ -1,0 +1,17 @@
+{
+    "name": "nebula-expenses",
+    "version": "1.0.0",
+    "description": "Nebula Expenses - Personal finance dashboard",
+    "main": "main.js",
+    "scripts": {
+        "start": "electron ."
+    },
+    "author": "Usuario",
+    "license": "MIT",
+    "devDependencies": {
+        "electron": "^27.0.0"
+    },
+    "dependencies": {
+        "chart.js": "^4.4.8"
+    }
+}

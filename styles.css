@@ -1,0 +1,53 @@
+.tab-btn {
+  padding: 1rem 0.5rem;
+  border-bottom: 2px solid transparent;
+  font-weight: 500;
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+.tab-btn:hover {
+  color: #4b5563;
+  border-color: #d1d5db;
+}
+.tab-active {
+  color: #7c3aed;
+  border-color: #7c3aed;
+  font-weight: 600;
+}
+.tab-section {
+  display: block;
+}
+.card {
+  background-color: white;
+  padding: 1.5rem;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+.chart-container {
+  position: relative;
+  height: 250px;
+  width: 100%;
+}
+
+
+/* #expenses .fixed-form {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 33%;
+  height: 100%;
+  overflow-y: auto;
+  border-right: 1px solid #e5e7eb;
+  background-color: white;
+  z-index: 10;
+}
+
+#expenses .scroll-transactions {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 66%;
+  height: 100%;
+  overflow-y: auto;
+  padding: 1rem;
+} */

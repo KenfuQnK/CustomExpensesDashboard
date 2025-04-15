@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Nebula Expenses</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <script defer src="renderer.js"></script>
+</head>
+<body class="bg-gray-50 font-sans">
+  <div class="min-h-screen flex flex-col">
+    <header class="bg-white shadow-sm">
+      <div class="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8 flex justify-between items-center">
+        <h1 class="text-2xl font-bold text-gray-800">
+          <i class="fas fa-rocket text-purple-500 mr-2"></i>Nebula Expenses
+        </h1>
+        <div class="flex items-center space-x-4">
+          <i class="fas fa-bell text-purple-500 text-xl"></i>
+          <div class="h-8 w-8 rounded-full bg-purple-500 flex items-center justify-center text-white">
+            <i class="fas fa-user"></i>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main class="flex-1">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <nav class="border-b border-gray-200 -mb-px flex space-x-8">
+          <button onclick="switchTab('dashboard')" class="tab-btn tab-active" id="tab-dashboard">
+            <i class="fas fa-chart-pie mr-2"></i>Dashboard
+          </button>
+          <button onclick="switchTab('expenses')" class="tab-btn" id="tab-expenses">
+            <i class="fas fa-receipt mr-2"></i>Expenses
+          </button>
+          <button onclick="switchTab('configuration')" class="tab-btn" id="tab-configuration">
+            <i class="fas fa-cog mr-2"></i>Configuration
+          </button>
+        </nav>
+      </div>
+
+      <!-- Dashboard -->
+      <section id="dashboard" data-tab class="tab-section py-6 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div id="dashboard-content"></div>
+      </section>
+
+      <!-- Expenses -->
+      <section id="expenses" data-tab class="tab-section py-6 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 hidden">
+        <div id="expenses-content"></div>
+      </section>
+
+      <!-- Configuration -->
+      <section id="configuration" data-tab class="tab-section py-6 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 hidden">
+        <div id="configuration-content"></div>
+      </section>
+    </main>
+  </div>
+
+  <div id="category-edit-modal" class="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center hidden z-50">
+    <div class="bg-white rounded-lg p-6 w-full max-w-md shadow-lg">
+      <h3 class="text-lg font-medium mb-4">Editar categoría</h3>
+      <input type="hidden" id="edit-cat-original" />
+      <div class="mb-4">
+        <label class="block text-sm font-medium mb-1">Nombre</label>
+        <input type="text" id="edit-cat-name" class="w-full border rounded px-3 py-2" />
+      </div>
+      <div class="mb-4">
+        <label class="block text-sm font-medium mb-1">Color de fondo (HEX)</label>
+        <input type="color" id="edit-cat-bg" class="w-full h-10" />
+      </div>
+      <div class="mb-4">
+        <label class="block text-sm font-medium mb-1">Color de texto (HEX)</label>
+        <input type="color" id="edit-cat-text" class="w-full h-10" />
+      </div>
+      <div class="flex justify-end space-x-2 mt-4">
+        <button onclick="closeCategoryEditModal()" class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">Cancelar</button>
+        <button onclick="saveCategoryEdit()" class="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="type-edit-modal" class="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center hidden z-50">
+    <div class="bg-white rounded-lg p-6 w-full max-w-md shadow-lg">
+      <h3 class="text-lg font-medium mb-4">Editar tipo</h3>
+      <input type="hidden" id="edit-type-original" />
+      <div class="mb-4">
+        <label class="block text-sm font-medium mb-1">Nombre</label>
+        <input type="text" id="edit-type-name" class="w-full border rounded px-3 py-2" />
+      </div>
+      <div class="mb-4">
+        <label class="block text-sm font-medium mb-1">Color de fondo (HEX)</label>
+        <input type="color" id="edit-type-bg" class="w-full h-10" />
+      </div>
+      <div class="mb-4">
+        <label class="block text-sm font-medium mb-1">Color de texto (HEX)</label>
+        <input type="color" id="edit-type-text" class="w-full h-10" />
+      </div>
+      <div class="mb-4">
+        <label class="block text-sm font-medium mb-1">Impacto</label>
+        <select id="edit-type-impact" class="w-full border p-2 rounded">
+          <option value="positive">Positivo</option>
+          <option value="negative">Negativo</option>
+          <option value="neutral">Neutral</option>
+        </select>
+      </div>
+      <div class="flex justify-end space-x-2 mt-4">
+        <button onclick="closeTypeEditModal()" class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">Cancelar</button>
+        <button onclick="saveTypeEdit()" class="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700">Guardar</button>
+      </div>
+    </div>
+  </div>
+  
+  
+</body>
+</html>
