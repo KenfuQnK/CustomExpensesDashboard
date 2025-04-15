@@ -103,6 +103,7 @@
           <option value="positive">Positivo</option>
           <option value="negative">Negativo</option>
           <option value="neutral">Neutral</option>
+          <option value="ignore">Ignorar</option>
         </select>
       </div>
       <div class="flex justify-end space-x-2 mt-4">
@@ -111,6 +112,19 @@
       </div>
     </div>
   </div>
+
+  <!-- Confirmación de borrado -->
+<div id="delete-confirm-modal" class="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center hidden z-50">
+    <div class="bg-white rounded-lg p-6 w-full max-w-md shadow-lg text-center">
+      <h3 class="text-lg font-medium mb-4 text-gray-800">¿Eliminar transacción?</h3>
+      <p id="delete-confirm-msg" class="text-sm text-gray-600 mb-6"></p>
+      <div class="flex justify-center space-x-4">
+        <button onclick="closeDeleteConfirmModal()" class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">Cancelar</button>
+        <button id="delete-confirm-btn" class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700">Eliminar</button>
+      </div>
+    </div>
+  </div>
+  
   
   
 </body>

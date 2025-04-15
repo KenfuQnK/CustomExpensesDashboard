@@ -10,6 +10,7 @@ const configPath = path.join(__dirname, "config.json");
 let transactions = [];
 let types = [];
 let categories = [];
+let pendingDeleteId = null;
 
 // Charts
 let dashboardCharts = {};
@@ -183,14 +184,15 @@ function drawDashboard() {
   `;
 
   // Agrupar por mes e impacto
-  const monthlyMap = {}; // { 'YYYY-MM': { positive: 0, negative: 0, neutral: 0 } }
+  const monthlyMap = {}; 
 
   transactions.forEach(t => {
     const date = new Date(t.date);
     if (isNaN(date)) return;
 
     const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-    const type = types.find(tp => tp.name === t.type);
+    const normalize = str => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    const type = types.find(tp => normalize(tp.name) === normalize(t.type));
     const impact = type?.impact || "neutral";
 
     if (!monthlyMap[monthKey]) {
@@ -267,33 +269,167 @@ function drawDashboard() {
   });
 
   // Categorías del último mes
-  const categoryTotals = {};
-  transactions.forEach(t => {
-    const type = types.find(tp => tp.name === t.type);
-    const impact = type?.impact || "neutral";
-    if (impact === "negative" && t.date.startsWith(lastMonthKey)) {
-      categoryTotals[t.category] = (categoryTotals[t.category] || 0) + t.amount;
-    }
-  });
+// Agrupar y ordenar categorías de mayor a menor gasto
+const categoryTotals = {};
+transactions.forEach(t => {
+  const normalize = str => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const type = types.find(tp => normalize(tp.name) === normalize(t.type));  
+
+  if (!type) {
+    console.warn(`❗ Tipo no encontrado en 'types': "${t.type}" (transacción ID: ${t.id})`);
+  }
+
+  const impact = type?.impact || "neutral";
+  if (impact === "negative") {
+    categoryTotals[t.category] = (categoryTotals[t.category] || 0) + t.amount;
+  }
+});
+
+
+
+// Ordenar por gasto descendente
+const sortedEntries = Object.entries(categoryTotals).sort((a, b) => b[1] - a[1]);
+const sortedLabels = sortedEntries.map(([cat]) => cat);
+const sortedData = sortedEntries.map(([, amount]) => amount);
 
   dashboardCharts.categories = new Chart(document.getElementById("categoryBarChart"), {
     type: "bar",
     data: {
-      labels: Object.keys(categoryTotals),
+      labels: sortedLabels,
       datasets: [{
         label: "Expenses by Category",
-        data: Object.values(categoryTotals),
+        data: sortedData,
         backgroundColor: "#f97316"
       }]
     },
-    options: { responsive: true, maintainAspectRatio: false }
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        y: {
+          ticks: {
+            callback: function(value) {
+              return value + "€";
+            }
+          }
+        }
+      }
+    }
   });
+
+  // ---------- NUEVO GRÁFICO: EXPENSES OVERVIEW ----------
+
+// Paso 1: calcular los últimos 6 meses
+const now = new Date();
+const last6Months = Array.from({ length: 6 }).map((_, i) => {
+  const d = new Date(now.getFullYear(), now.getMonth() - 5 + i);
+  const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  const label = d.toLocaleString("default", { month: "short", year: "numeric" });
+  return { key, label };
+});
+
+// Paso 2: acumular gastos por categoría y mes
+const monthlyCategoryData = {}; // { monthKey: { cat: total, ... }, ... }
+
+transactions.forEach(t => {
+  const date = new Date(t.date);
+  if (isNaN(date)) return;
+
+  const type = types.find(tp => tp.name === t.type);
+  const impact = type?.impact || "neutral";
+  if (impact !== "negative") return;
+
+  const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+  const month = last6Months.find(m => m.key === monthKey);
+  if (!month) return;
+
+  if (!monthlyCategoryData[monthKey]) monthlyCategoryData[monthKey] = {};
+  const cat = t.category || "Sin categoría";
+  monthlyCategoryData[monthKey][cat] = (monthlyCategoryData[monthKey][cat] || 0) + t.amount;
+});
+
+// Paso 3: determinar top 5 categorías globales por gasto total
+const totalPerCategory = {};
+transactions.forEach(t => {
+  const type = types.find(tp => tp.name === t.type);
+  const impact = type?.impact || "neutral";
+  if (impact !== "negative") return;
+  const cat = t.category || "Sin categoría";
+  totalPerCategory[cat] = (totalPerCategory[cat] || 0) + t.amount;
+});
+
+const topCategories = Object.entries(totalPerCategory)
+  .sort((a, b) => b[1] - a[1])
+  .slice(0, 5)
+  .map(([cat]) => cat);
+
+// Paso 4: construir datasets
+const datasets = [];
+
+const getColor = cat => {
+  const c = categories.find(c => c.name === cat);
+  return c ? c.bg : "#d1d5db"; // gris por defecto
+};
+
+topCategories.forEach(cat => {
+  datasets.push({
+    label: cat,
+    data: last6Months.map(m => monthlyCategoryData[m.key]?.[cat] || 0),
+    backgroundColor: getColor(cat),
+    stack: "gastos"
+  });
+});
+
+// Agrupar "otros"
+datasets.push({
+  label: "Otros",
+  data: last6Months.map(m => {
+    const data = monthlyCategoryData[m.key] || {};
+    const totalOtros = Object.entries(data)
+      .filter(([cat]) => !topCategories.includes(cat))
+      .reduce((acc, [, val]) => acc + val, 0);
+    return totalOtros;
+  }),
+  backgroundColor: "#9ca3af", // gris neutro
+  stack: "gastos"
+});
+
+// Destruir anterior si existe
+if (dashboardCharts.expenseLine) dashboardCharts.expenseLine.destroy();
+
+// Crear nuevo gráfico apilado
+dashboardCharts.expenseLine = new Chart(document.getElementById("expenseLineChart"), {
+  type: "bar",
+  data: {
+    labels: last6Months.map(m => m.label),
+    datasets
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      tooltip: {
+        callbacks: {
+          label: ctx => `${ctx.dataset.label}: ${ctx.formattedValue}€`
+        }
+      }
+    },
+    scales: {
+      x: { stacked: true },
+      y: {
+        stacked: true,
+        ticks: {
+          callback: value => value + "€"
+        }
+      }
+    }
+  }
+});
 }
 
 
-
 function drawCharts() {
-  const monthlyMap = {}; // { YYYY-MM: { positive: 0, negative: 0, neutral: 0 } }
+  const monthlyMap = {};
 
   transactions.forEach(t => {
     const date = new Date(t.date);
@@ -325,7 +461,7 @@ function drawCharts() {
   transactions.forEach(t => {
     const type = types.find(tp => tp.name === t.type);
     const impact = type?.impact || "neutral";
-    if (impact === "negative" && t.date.startsWith(lastMonth)) {
+    if (impact === "negative") {
       categoryTotals[t.category] = (categoryTotals[t.category] || 0) + t.amount;
     }
   });
@@ -360,21 +496,8 @@ function drawCharts() {
       ]
     },
     options: { responsive: true, maintainAspectRatio: false }
-  });
+  });  
 
-  // Gráfico de barras por categoría (gastos)
-  dashboardCharts.categories = new Chart(document.getElementById("categoryBarChart"), {
-    type: "bar",
-    data: {
-      labels: Object.keys(categoryTotals),
-      datasets: [{
-        label: "Expenses by Category",
-        data: Object.values(categoryTotals),
-        backgroundColor: "#f97316"
-      }]
-    },
-    options: { responsive: true, maintainAspectRatio: false }
-  });
 }
 
 
@@ -508,10 +631,12 @@ function renderTransactionList() {
     const impact = typeDef?.impact || "neutral";
 
     const amountColor = impact === "positive"
-      ? "text-green-600"
-      : impact === "negative"
-      ? "text-red-600"
-      : "text-gray-700";
+    ? "text-green-600"
+    : impact === "negative"
+    ? "text-red-600"
+    : impact === "neutral"
+    ? "text-gray-700"
+    : "text-gray-400";
 
     const sign = impact === "positive" ? "+" : impact === "negative" ? "-" : "";
 
@@ -549,6 +674,32 @@ function renderTransactionList() {
     ul.appendChild(li);
   });
 }
+
+function deleteTransaction(id) {
+  const t = transactions.find(t => t.id === id);
+  if (!t) return;
+
+  pendingDeleteId = id;
+
+  const msg = `"${t.description}" por ${t.amount}€ (${t.category || "Sin categoría"})`;
+  document.getElementById("delete-confirm-msg").innerText = msg;
+  document.getElementById("delete-confirm-modal").classList.remove("hidden");
+}
+
+function closeDeleteConfirmModal() {
+  pendingDeleteId = null;
+  document.getElementById("delete-confirm-modal").classList.add("hidden");
+}
+
+document.getElementById("delete-confirm-btn").onclick = () => {
+  if (!pendingDeleteId) return;
+
+  transactions = transactions.filter(t => t.id !== pendingDeleteId);
+  saveTransactions();
+  drawExpenses();
+  drawDashboard();
+  closeDeleteConfirmModal();
+};
 
 
 
@@ -718,7 +869,14 @@ function addItem(e, kind) {
   const value = input.value.trim();
   if (!value) return;
 
-  if (kind === "type") types.push(value);
+  if (kind === "type") {
+    types.push({
+      name: value,
+      bg: "#e0f2fe",     // color por defecto
+      text: "#0369a1",   // color por defecto
+      impact: "neutral"  // valor por defecto
+    });
+  }
   else categories.push(value);
 
   saveConfig();
@@ -738,11 +896,21 @@ function deleteItem(value, kind) {
 }
 
 function confirmDeleteItem(value, kind) {
+  // if (kind === "type") {
+  //   types = types.filter(t => (typeof t === "string" ? t !== value : t.name !== value));
+  //   transactions.forEach(t => {
+  //     if (t.type === value) t.type = "Indefinido"; // opcional: poner "" o "undefined"
+  //   });
+
   if (kind === "type") {
-    types = types.filter(t => t !== value);
-    transactions.forEach(t => {
-      if (t.type === value) t.type = "Indefinido"; // opcional: poner "" o "undefined"
+    types = types.filter(t => {
+      if (typeof t === "string") return t !== value;
+      return t.name !== value;
     });
+  
+    transactions.forEach(t => {
+      if (t.type === value) t.type = "Indefinido";
+    });  
   } else {
     categories = categories.filter(c => c !== value);
     transactions.forEach(t => {
