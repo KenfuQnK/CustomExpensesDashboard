@@ -14,7 +14,7 @@ let pendingDeleteId = null;
 let darkMode = localStorage.getItem('darkMode') === 'true';
 
 // Charts
-let dashboardCharts = {};
+window.dashboardCharts = {};
 
 //-------------------------------------------- DARK MODE
 
@@ -327,17 +327,109 @@ function drawDashboard() {
     options: { responsive: true, maintainAspectRatio: false }
   });
 
+  // dashboardCharts.income = new Chart(document.getElementById("incomeChart"), {
+  //   type: "line",
+  //   data: {
+  //     labels: monthLabels,
+  //     datasets: [
+  //       { label: "Positive", data: positive, borderColor: "#22c55e", tension: 0.3 },
+  //       { label: "Neutral", data: neutral, borderColor: "#3b82f6", tension: 0.3 }
+  //     ]
+  //   },
+  //   options: { responsive: true, maintainAspectRatio: false }
+  // });
+  //------------------------------
   dashboardCharts.income = new Chart(document.getElementById("incomeChart"), {
     type: "line",
     data: {
       labels: monthLabels,
       datasets: [
-        { label: "Positive", data: positive, borderColor: "#22c55e", tension: 0.3 },
-        { label: "Neutral", data: neutral, borderColor: "#3b82f6", tension: 0.3 }
+        { 
+          label: "Income", 
+          data: positive, 
+          borderColor: "rgb(255, 71, 87)", 
+          backgroundColor: "rgba(255, 71, 87, 0.1)",
+          tension: 0.4,
+          borderWidth: 3,
+          pointRadius: 0,
+          pointHoverRadius: 6,
+          pointBackgroundColor: "white",
+          pointBorderColor: "rgb(255, 71, 87)",
+          pointBorderWidth: 2,
+          fill: true
+        },
+        { 
+          label: "Expenses", 
+          data: neutral, 
+          borderColor: "rgb(252, 163, 17)", 
+          backgroundColor: "rgba(252, 163, 17, 0.1)",
+          tension: 0.4,
+          borderWidth: 3,
+          pointRadius: 0,
+          pointHoverRadius: 6,
+          pointBackgroundColor: "white",
+          pointBorderColor: "rgb(252, 163, 17)",
+          pointBorderWidth: 2,
+          fill: true
+        }
       ]
     },
-    options: { responsive: true, maintainAspectRatio: false }
+    options: { 
+      responsive: true, 
+      maintainAspectRatio: false,
+      scales: {
+        x: {
+          grid: {
+            color: darkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)',
+            borderColor: 'transparent',
+            tickColor: 'transparent',
+            drawBorder: false
+          },
+          ticks: {
+            color: darkMode ? 'rgba(255, 255, 255, 0.7)' : 'rgba(0, 0, 0, 0.7)',
+            font: { size: 10 }
+          }
+        },
+        y: {
+          grid: {
+            color: darkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)',
+            borderColor: 'transparent',
+            tickColor: 'transparent',
+            drawBorder: false
+          },
+          ticks: {
+            color: darkMode ? 'rgba(255, 255, 255, 0.7)' : 'rgba(0, 0, 0, 0.7)',
+            font: { size: 10 },
+            callback: function(value) {
+              return value + '€';
+            }
+          }
+        }
+      },
+      plugins: {
+        tooltip: {
+          backgroundColor: darkMode ? 'rgba(17, 24, 39, 0.9)' : 'rgba(255, 255, 255, 0.9)',
+          borderColor: darkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
+          borderWidth: 1,
+          titleColor: darkMode ? 'rgba(255, 255, 255, 0.9)' : 'rgba(0, 0, 0, 0.9)',
+          bodyColor: darkMode ? 'rgba(255, 255, 255, 0.8)' : 'rgba(0, 0, 0, 0.8)',
+          cornerRadius: 8,
+          padding: 8
+        },
+        legend: {
+          labels: {
+            color: darkMode ? 'rgba(255, 255, 255, 0.8)' : 'rgba(0, 0, 0, 0.8)',
+            font: { size: 11 }
+          }
+        }
+      },
+      hover: {
+        mode: 'nearest',
+        intersect: false
+      }
+    }
   });
+
 
   // Categorías del último mes
 // Agrupar y ordenar categorías de mayor a menor gasto
@@ -600,17 +692,74 @@ function drawCharts() {
   if (dashboardCharts.categories) dashboardCharts.categories.destroy();
 
   // Gráfico mensual (barras)
+  // dashboardCharts.monthly = new Chart(document.getElementById("monthlyChart"), {
+  //   type: "bar",
+  //   data: {
+  //     labels: monthLabels,
+  //     datasets: [
+  //       { label: "Positive", data: positive, backgroundColor: "#22c55e" },
+  //       { label: "Negative", data: negative, backgroundColor: "#ef4444" },
+  //       { label: "Neutral", data: neutral, backgroundColor: "#3b82f6" }
+  //     ]
+  //   },
+  //   options: { responsive: true, maintainAspectRatio: false }
+  // });
+
   dashboardCharts.monthly = new Chart(document.getElementById("monthlyChart"), {
     type: "bar",
     data: {
       labels: monthLabels,
       datasets: [
-        { label: "Positive", data: positive, backgroundColor: "#22c55e" },
-        { label: "Negative", data: negative, backgroundColor: "#ef4444" },
-        { label: "Neutral", data: neutral, backgroundColor: "#3b82f6" }
+        { label: "Positive", data: positive, backgroundColor: "rgba(20, 223, 166, 0.7)" },
+        { label: "Negative", data: negative, backgroundColor: "rgba(255, 71, 87, 0.7)" },
+        { label: "Neutral", data: neutral, backgroundColor: "rgba(109, 93, 252, 0.7)" }
       ]
     },
-    options: { responsive: true, maintainAspectRatio: false }
+    options: { 
+      responsive: true, 
+      maintainAspectRatio: false,
+      scales: {
+        x: {
+          grid: {
+            color: 'rgba(255, 255, 255, 0.05)',
+            borderColor: 'transparent',
+            drawBorder: false
+          },
+          ticks: {
+            color: 'rgba(255, 255, 255, 0.7)',
+            font: { size: 10 }
+          }
+        },
+        y: {
+          grid: {
+            color: 'rgba(255, 255, 255, 0.05)',
+            borderColor: 'transparent',
+            drawBorder: false
+          },
+          ticks: {
+            color: 'rgba(255, 255, 255, 0.7)',
+            font: { size: 10 }
+          }
+        }
+      },
+      plugins: {
+        tooltip: {
+          backgroundColor: 'rgba(17, 24, 39, 0.9)',
+          borderColor: 'rgba(255, 255, 255, 0.1)',
+          borderWidth: 1,
+          titleColor: 'rgba(255, 255, 255, 0.9)',
+          bodyColor: 'rgba(255, 255, 255, 0.8)',
+          cornerRadius: 8,
+          padding: 8
+        },
+        legend: {
+          labels: {
+            color: 'rgba(255, 255, 255, 0.8)',
+            font: { size: 11 }
+          }
+        }
+      }
+    }
   });
 
   // Gráfico de línea de tendencias
@@ -696,6 +845,7 @@ function createTrendForecastChart() {
 
 // Actualizar los datos del gráfico de tendencia
 function updateTrendForecast() {
+  try {
   const trendType = document.getElementById('trend-type')?.value || 'expenses';
   const forecastMonths = parseInt(document.getElementById('trend-period')?.value || 6);
   
@@ -778,17 +928,6 @@ function updateTrendForecast() {
         mode: 'index'
       },
       plugins: {
-        zoom: {
-          zoom: {
-            wheel: { enabled: true },
-            pinch: { enabled: true },
-            mode: 'xy'
-          },
-          pan: {
-            enabled: true,
-            mode: 'xy'
-          }
-        },
         tooltip: {
           callbacks: {
             label: function(context) {
@@ -814,23 +953,23 @@ function updateTrendForecast() {
           display: true,
           text: 'Tendencia histórica y proyección futura'
         },
-        annotation: {
-          annotations: {
-            line1: {
-              type: 'line',
-              mode: 'vertical',
-              scaleID: 'x',
-              value: monthlyData.labels.length - 1,
-              borderColor: 'rgba(166, 166, 166, 0.75)',
-              borderWidth: 2,
-              label: {
-                content: 'Ahora',
-                enabled: true,
-                position: 'top'
-              }
-            }
-          }
-        }
+        // annotation: {
+        //   annotations: {
+        //     line1: {
+        //       type: 'line',
+        //       mode: 'vertical',
+        //       scaleID: 'x',
+        //       value: monthlyData.labels.length - 1,
+        //       borderColor: 'rgba(166, 166, 166, 0.75)',
+        //       borderWidth: 2,
+        //       label: {
+        //         content: 'Ahora',
+        //         enabled: true,
+        //         position: 'top'
+        //       }
+        //     }
+        //   }
+        // }
       },
       scales: {
         y: {
@@ -873,7 +1012,11 @@ function updateTrendForecast() {
   };
   
   Chart.register(verticalLinePlugin);
+} catch (error) {
+  console.error("Error al crear gráfico:", error);
+  showNoDataWarning();
 }
+};
 
 // Generar datos mensuales basados en las transacciones
 function generateMonthlyFinancialData(type) {
