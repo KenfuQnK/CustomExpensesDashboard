@@ -11,10 +11,57 @@ let transactions = [];
 let types = [];
 let categories = [];
 let pendingDeleteId = null;
+let darkMode = localStorage.getItem('darkMode') === 'true';
 
 // Charts
 let dashboardCharts = {};
 
+//-------------------------------------------- DARK MODE
+
+function toggleDarkMode() {
+  darkMode = !darkMode;
+  applyDarkMode();
+  localStorage.setItem('darkMode', darkMode);
+}
+
+function applyDarkMode() {
+  if (darkMode) {
+    document.documentElement.classList.add('dark');
+  } else {
+    document.documentElement.classList.remove('dark');
+  }
+}
+
+// Llamar a esta función al inicio para aplicar el modo guardado
+function initializeDarkMode() {
+  // Cargar preferencia guardada
+  if (localStorage.getItem('darkMode') === null) {
+    // Detectar preferencia del sistema
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    darkMode = prefersDark;
+    localStorage.setItem('darkMode', darkMode);
+  }
+  applyDarkMode();
+}
+
+// Agregar esta función para modificar el UI con el botón de modo oscuro
+function addDarkModeToggle() {
+  const headerControls = document.querySelector('header .flex.items-center.space-x-4');
+  if (!headerControls) return;
+  
+  const darkModeBtn = document.createElement('button');
+  darkModeBtn.id = 'dark-mode-toggle';
+  darkModeBtn.className = 'text-xl';
+  darkModeBtn.innerHTML = darkMode ? '<i class="fas fa-sun"></i>' : '<i class="fas fa-moon"></i>';
+  darkModeBtn.addEventListener('click', () => {
+    toggleDarkMode();
+    darkModeBtn.innerHTML = darkMode ? '<i class="fas fa-sun"></i>' : '<i class="fas fa-moon"></i>';
+  });
+  
+  headerControls.prepend(darkModeBtn);
+}
+
+//--------------------------------------------
 
 function loadData() {
   if (!fs.existsSync(transactionsPath)) fs.writeFileSync(transactionsPath, JSON.stringify([]));
@@ -588,16 +635,71 @@ function drawCharts() {
 function drawExpenses() {
   const container = document.getElementById("expenses-content");
   container.innerHTML = `
-  <div class="flex justify-between items-center mb-4">
+  <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-2">
     <h3 class="text-xl font-semibold">Your Transactions</h3>
-    <select id="filter-range" class="border rounded px-2 py-1 text-sm">
-      <option value="month">Este mes</option>
-      <option value="30">Últimos 30 días</option>
-      <option value="90">Últimos 3 meses</option>
-      <option value="year">Este año</option>
-      <option value="all">Todo</option>
-    </select>
+    <div class="flex flex-col md:flex-row gap-2">
+      <div class="flex items-center">
+        <button id="show-filters-btn" class="border rounded px-3 py-1 text-sm flex items-center">
+          <i class="fas fa-filter mr-2"></i> Filtros
+          <i class="fas fa-chevron-down ml-2"></i>
+        </button>
+      </div>
+      <select id="filter-range" class="border rounded px-2 py-1 text-sm">
+        <option value="month">Este mes</option>
+        <option value="30">Últimos 30 días</option>
+        <option value="90">Últimos 3 meses</option>
+        <option value="year">Este año</option>
+        <option value="all">Todo</option>
+      </select>
+    </div>
   </div>
+  
+  <!-- Panel de filtros avanzados (oculto por defecto) -->
+  <div id="advanced-filters" class="hidden mb-4 card">
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+      <div>
+        <label class="block text-sm font-medium mb-1">Categoría</label>
+        <select id="filter-category" class="w-full border rounded px-2 py-1">
+          <option value="">Todas</option>
+          ${categories.map(c => `<option value="${c.name || c}">${c.name || c}</option>`).join("")}
+        </select>
+      </div>
+      <div>
+        <label class="block text-sm font-medium mb-1">Tipo</label>
+        <select id="filter-type" class="w-full border rounded px-2 py-1">
+          <option value="">Todos</option>
+          ${types.map(t => `<option value="${t.name || t}">${t.name || t}</option>`).join("")}
+        </select>
+      </div>
+      <div>
+        <label class="block text-sm font-medium mb-1">Importe mínimo</label>
+        <input type="number" id="filter-min-amount" placeholder="Mínimo" class="w-full border rounded px-2 py-1" />
+      </div>
+      <div>
+        <label class="block text-sm font-medium mb-1">Importe máximo</label>
+        <input type="number" id="filter-max-amount" placeholder="Máximo" class="w-full border rounded px-2 py-1" />
+      </div>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3">
+      <div>
+        <label class="block text-sm font-medium mb-1">Descripción</label>
+        <input type="text" id="filter-description" placeholder="Buscar..." class="w-full border rounded px-2 py-1" />
+      </div>
+      <div>
+        <label class="block text-sm font-medium mb-1">Desde</label>
+        <input type="date" id="filter-date-from" class="w-full border rounded px-2 py-1" />
+      </div>
+      <div>
+        <label class="block text-sm font-medium mb-1">Hasta</label>
+        <input type="date" id="filter-date-to" class="w-full border rounded px-2 py-1" />
+      </div>
+    </div>
+    <div class="flex justify-end mt-3">
+      <button id="reset-filters-btn" class="border rounded px-3 py-1 text-sm mr-2">Resetear</button>
+      <button id="apply-filters-btn" class="bg-purple-600 text-white rounded px-3 py-1 text-sm">Aplicar</button>
+    </div>
+  </div>
+  
   <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
     <div>
       <div class="card">
@@ -605,12 +707,12 @@ function drawExpenses() {
         <form id="transaction-form" class="space-y-4">
           <input type="hidden" id="trans-id" />
           <select id="trans-type" class="w-full border p-2 rounded">
-            ${types.map(t => `<option value="${t.name}">${t.name}</option>`).join("")}
+            ${types.map(t => `<option value="${t.name || t}">${t.name || t}</option>`).join("")}
           </select>
           <input type="number" id="trans-amount" placeholder="Amount" class="w-full border p-2 rounded" />
           <input type="text" id="trans-desc" placeholder="Description" class="w-full border p-2 rounded" />
           <select id="trans-cat" class="w-full border p-2 rounded">
-            ${categories.map(c => `<option value="${c.name}">${c.name}</option>`).join("")}
+            ${categories.map(c => `<option value="${c.name || c}">${c.name || c}</option>`).join("")}
           </select>
           <input type="date" id="trans-date" class="w-full border p-2 rounded" />
           <button class="bg-purple-600 text-white px-4 py-2 rounded w-full">Save</button>
@@ -619,14 +721,19 @@ function drawExpenses() {
     </div>
     <div class="lg:col-span-2">
       <div class="card h-[calc(100vh-280px)] overflow-y-auto p-6 pt-0">
-        <h3 class="text-lg font-medium mb-4 sticky top-0 bg-white z-10 p-4">Transactions</h3>
+        <div class="flex justify-between items-center mb-4 sticky top-0 bg-white z-10 p-4 dark:bg-card">
+          <h3 class="text-lg font-medium">Transactions</h3>
+          <div class="text-sm text-gray-500" id="transaction-count"></div>
+        </div>
         <ul id="transaction-list" class="divide-y divide-gray-200"></ul>
       </div>
     </div>
   </div>
 `;
 
-
+  // Establecer fecha actual en el formulario
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById("trans-date").value = today;
 
   // Form logic
   const form = document.getElementById("transaction-form");
@@ -646,17 +753,50 @@ function drawExpenses() {
     if (index >= 0) transactions[index] = t;
     else transactions.push(t);
 
-    const currentFilter = document.getElementById("filter-range").value;
+    // Mantener filtros actuales
+    const filters = getActiveFilters();
 
     saveTransactions();
     drawExpenses();
     
-    const filterDropdown = document.getElementById("filter-range");
-    if (filterDropdown) filterDropdown.value = currentFilter;
+    // Restaurar filtros
+    applyFiltersFromState(filters);
     
     drawCharts();
     renderTransactionList();
   };
+   // Toggle de filtros avanzados
+   const showFiltersBtn = document.getElementById("show-filters-btn");
+   const advancedFilters = document.getElementById("advanced-filters");
+   
+   showFiltersBtn.addEventListener("click", () => {
+     advancedFilters.classList.toggle("hidden");
+     // Cambiar icono
+     const icon = showFiltersBtn.querySelector(".fa-chevron-down, .fa-chevron-up");
+     if (icon) {
+       icon.classList.toggle("fa-chevron-down");
+       icon.classList.toggle("fa-chevron-up");
+     }
+   });
+
+   // Eventos de botones de filtro
+  document.getElementById("reset-filters-btn").addEventListener("click", () => {
+    // Resetear todos los campos de filtro
+    document.getElementById("filter-category").value = "";
+    document.getElementById("filter-type").value = "";
+    document.getElementById("filter-min-amount").value = "";
+    document.getElementById("filter-max-amount").value = "";
+    document.getElementById("filter-description").value = "";
+    document.getElementById("filter-date-from").value = "";
+    document.getElementById("filter-date-to").value = "";
+    
+    renderTransactionList();
+  });
+
+  
+  document.getElementById("apply-filters-btn").addEventListener("click", () => {
+    renderTransactionList();
+  });
 
   // Filtro activo
   const filterDropdown = document.getElementById("filter-range");
@@ -664,38 +804,155 @@ function drawExpenses() {
     filterDropdown.onchange = () => renderTransactionList();
   }
 
+  // Configurar eventos input para actualizar en tiempo real
+  document.getElementById("filter-category").addEventListener("change", () => renderTransactionList());
+  document.getElementById("filter-type").addEventListener("change", () => renderTransactionList());
+  document.getElementById("filter-description").addEventListener("input", debounce(() => renderTransactionList(), 300));
+  document.getElementById("filter-min-amount").addEventListener("input", debounce(() => renderTransactionList(), 300));
+  document.getElementById("filter-max-amount").addEventListener("input", debounce(() => renderTransactionList(), 300));
+  document.getElementById("filter-date-from").addEventListener("change", () => renderTransactionList());
+  document.getElementById("filter-date-to").addEventListener("change", () => renderTransactionList());
+
   renderTransactionList(); // mostrar lista inicial
+}
+
+// Función helper para limitar eventos de input
+function debounce(func, timeout = 300) {
+  let timer;
+  return (...args) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => { func.apply(this, args); }, timeout);
+  };
+}
+
+
+// Obtener estado actual de los filtros
+function getActiveFilters() {
+  return {
+    range: document.getElementById("filter-range")?.value || "month",
+    category: document.getElementById("filter-category")?.value || "",
+    type: document.getElementById("filter-type")?.value || "",
+    minAmount: document.getElementById("filter-min-amount")?.value || "",
+    maxAmount: document.getElementById("filter-max-amount")?.value || "",
+    description: document.getElementById("filter-description")?.value || "",
+    dateFrom: document.getElementById("filter-date-from")?.value || "",
+    dateTo: document.getElementById("filter-date-to")?.value || ""
+  };
+}
+
+// Aplicar filtros desde un estado guardado
+function applyFiltersFromState(filters) {
+  if (!filters) return;
+  
+  if (document.getElementById("filter-range")) 
+    document.getElementById("filter-range").value = filters.range;
+  if (document.getElementById("filter-category")) 
+    document.getElementById("filter-category").value = filters.category;
+  if (document.getElementById("filter-type")) 
+    document.getElementById("filter-type").value = filters.type;
+  if (document.getElementById("filter-min-amount")) 
+    document.getElementById("filter-min-amount").value = filters.minAmount;
+  if (document.getElementById("filter-max-amount")) 
+    document.getElementById("filter-max-amount").value = filters.maxAmount;
+  if (document.getElementById("filter-description")) 
+    document.getElementById("filter-description").value = filters.description;
+  if (document.getElementById("filter-date-from")) 
+    document.getElementById("filter-date-from").value = filters.dateFrom;
+  if (document.getElementById("filter-date-to")) 
+    document.getElementById("filter-date-to").value = filters.dateTo;
 }
 
 function renderTransactionList() {
   const ul = document.getElementById("transaction-list");
+  const countElement = document.getElementById("transaction-count");
   if (!ul) return;
 
   ul.innerHTML = "";
 
-  const filter = document.getElementById("filter-range")?.value || "month";
+  // Obtener todos los filtros
+  const filters = getActiveFilters();
+  
+  // Filtro de tiempo predefinido
   const now = new Date();
   let filtered = [...transactions];
-
+  
   filtered = filtered.filter(t => {
     const d = new Date(t.date);
     if (isNaN(d)) return false;
 
-    if (filter === "all") return true;
-    if (filter === "month") return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-    if (filter === "year") return d.getFullYear() === now.getFullYear();
-
-    const days = parseInt(filter);
-    if (!isNaN(days)) {
-      const pastDate = new Date(now);
-      pastDate.setDate(now.getDate() - days);
-      return d >= pastDate && d <= now;
+    // 1. Aplicar filtro de rango de tiempo predefinido
+    if (filters.range === "month" && (d.getMonth() !== now.getMonth() || d.getFullYear() !== now.getFullYear())) {
+      return false;
     }
-
+    else if (filters.range === "year" && d.getFullYear() !== now.getFullYear()) {
+      return false;
+    }
+    else if (!isNaN(parseInt(filters.range))) {
+      const pastDate = new Date(now);
+      pastDate.setDate(now.getDate() - parseInt(filters.range));
+      if (d < pastDate || d > now) return false;
+    }
+    
+    // 2. Filtro por categoría
+    if (filters.category && t.category !== filters.category) {
+      return false;
+    }
+    
+    // 3. Filtro por tipo
+    if (filters.type && t.type !== filters.type) {
+      return false;
+    }
+    
+    // 4. Filtro por monto mínimo
+    if (filters.minAmount && t.amount < parseFloat(filters.minAmount)) {
+      return false;
+    }
+    
+    // 5. Filtro por monto máximo
+    if (filters.maxAmount && t.amount > parseFloat(filters.maxAmount)) {
+      return false;
+    }
+    
+    // 6. Filtro por descripción (buscar texto)
+    if (filters.description && !t.description.toLowerCase().includes(filters.description.toLowerCase())) {
+      return false;
+    }
+    
+    // 7. Filtro por fecha de inicio
+    if (filters.dateFrom) {
+      const fromDate = new Date(filters.dateFrom);
+      if (d < fromDate) return false;
+    }
+    
+    // 8. Filtro por fecha final
+    if (filters.dateTo) {
+      const toDate = new Date(filters.dateTo);
+      toDate.setHours(23, 59, 59, 999); // Final del día
+      if (d > toDate) return false;
+    }
+    
     return true;
   });
 
+  // Ordenar por fecha reciente primero
   filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
+  
+  // Actualizar contador
+  if (countElement) {
+    countElement.textContent = `${filtered.length} transacción${filtered.length !== 1 ? 'es' : ''}`;
+  }
+  
+  // Si no hay resultados, mostrar mensaje
+  if (filtered.length === 0) {
+    const emptyMessage = document.createElement('div');
+    emptyMessage.className = 'text-center py-6 text-gray-500';
+    emptyMessage.innerHTML = `
+      <i class="fas fa-search text-2xl mb-2"></i>
+      <p>No se encontraron transacciones con los filtros actuales.</p>
+    `;
+    ul.appendChild(emptyMessage);
+    return;
+  }
 
   filtered.forEach(t => {
     const li = document.createElement("li");
@@ -705,20 +962,27 @@ function renderTransactionList() {
     const iconSVG = icons[normalize(t.category)] || null;
 
 
-    const cat = categories.find(c => c.name === t.category);
-    const typeDef = types.find(tp => tp.name === t.type);
+    const cat = categories.find(c => {
+      if (typeof c === 'string') return c === t.category;
+      return c.name === t.category;
+    });
+    
+    const typeDef = types.find(tp => {
+      if (typeof tp === 'string') return tp === t.type;
+      return tp.name === t.type;
+    });
 
     const catBg = cat?.bg || "#f3f4f6";
     const catText = cat?.text || "#374151";
     const impact = typeDef?.impact || "neutral";
 
     const amountColor = impact === "positive"
-    ? "text-green-600"
-    : impact === "negative"
-    ? "text-red-600"
-    : impact === "neutral"
-    ? "text-gray-700"
-    : "text-gray-400";
+      ? "text-green-600"
+      : impact === "negative"
+      ? "text-red-600"
+      : impact === "neutral"
+      ? "text-gray-700"
+      : "text-gray-400";
 
     const sign = impact === "positive" ? "+" : impact === "negative" ? "-" : "";
 
@@ -1054,5 +1318,9 @@ function saveItemEdit(oldValue, kind) {
 
 document.addEventListener("DOMContentLoaded", () => {
   loadData();
+  initializeDarkMode();
   switchTab("dashboard");
+  
+  // Agregar con un pequeño retraso para asegurar que el header esté cargado
+  setTimeout(addDarkModeToggle, 100);
 });

@@ -93,3 +93,85 @@
   90% { opacity: 1; }
   100% { opacity: 0; transform: translateY(20px); }
 }
+
+/* Modo oscuro */
+.dark {
+  --bg-primary: #121212;
+  --bg-secondary: #1e1e1e;
+  --bg-card: #252525;
+  --text-primary: #e4e4e4;
+  --text-secondary: #a0a0a0;
+  --border-color: #333333;
+  --accent-color: #7e57c2;
+  --shadow-color: rgba(0, 0, 0, 0.3);
+}
+
+.dark body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.dark header {
+  background-color: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.dark .card {
+  background-color: var(--bg-card);
+  box-shadow: 0 1px 3px var(--shadow-color);
+}
+
+.dark .tab-btn {
+  color: var(--text-secondary);
+}
+
+.dark .tab-active {
+  color: var(--accent-color);
+  border-color: var(--accent-color);
+}
+
+.dark .tab-btn:hover {
+  color: var(--text-primary);
+  border-color: var(--border-color);
+}
+
+.dark input, 
+.dark select, 
+.dark textarea {
+  background-color: var(--bg-secondary);
+  border-color: var(--border-color);
+  color: var(--text-primary);
+}
+
+.dark .bg-white {
+  background-color: var(--bg-card);
+}
+
+.dark .text-gray-800 {
+  color: var(--text-primary);
+}
+
+.dark .text-gray-500 {
+  color: var(--text-secondary);
+}
+
+.dark .border-gray-200 {
+  border-color: var(--border-color);
+}
+
+.dark .divide-gray-200 > :not([hidden]) ~ :not([hidden]) {
+  border-color: var(--border-color);
+}
+
+.dark .hover\:bg-gray-50:hover {
+  background-color: var(--bg-secondary);
+}
+
+.dark #dark-mode-toggle {
+  color: var(--text-primary);
+}
+
+/* Estilos para los gráficos en modo oscuro */
+.dark .chart-container canvas {
+  filter: brightness(0.9) contrast(1.1);
+}
