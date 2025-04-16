@@ -79,10 +79,30 @@ function loadData() {
 
 function saveTransactions() {
   fs.writeFileSync(transactionsPath, JSON.stringify(transactions, null, 2));
+  mostrarNotificacion("Transacción guardada");
 }
 
 function saveConfig() {
   fs.writeFileSync(configPath, JSON.stringify({ types, categories }, null, 2));
+  mostrarNotificacion("Configuración actualizada");
+}
+
+function mostrarNotificacion(texto) {
+  const aviso = document.createElement("div");
+  aviso.className = "fixed bottom-4 right-4 bg-green-600 text-white px-4 py-2 rounded shadow-lg z-50 animate-fade-in-out";
+  aviso.innerText = texto;
+  document.body.appendChild(aviso);
+  setTimeout(() => aviso.remove(), 2500);
+}
+
+function validarCampoObligatorio(inputEl) {
+  if (!inputEl.value.trim()) {
+    inputEl.classList.add("border-red-500");
+    return false;
+  } else {
+    inputEl.classList.remove("border-red-500");
+    return true;
+  }
 }
 
 // ---------------------- UI LOGIC ------------------------
@@ -179,6 +199,10 @@ function drawDashboard() {
       <div class="card">
         <h3 class="text-lg font-medium text-gray-900 mb-4">Expenses Overview</h3>
         <div class="chart-container"><canvas id="expenseLineChart"></canvas></div>
+      </div>
+      <div class="card lg:col-span-1">
+        <h3 class="text-lg font-medium text-gray-900 mb-4">Distribución % del gasto</h3>
+        <div class="chart-container"><canvas id="expenseDonutChart"></canvas></div>
       </div>
     </div>
   `;
@@ -425,6 +449,64 @@ dashboardCharts.expenseLine = new Chart(document.getElementById("expenseLineChar
     }
   }
 });
+
+// Gráfico Donut: Distribución porcentual de gastos por categoría (último mes)
+if (dashboardCharts.expenseDonut) dashboardCharts.expenseDonut.destroy();
+
+const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+
+const lastMonthExpenses = transactions.filter(t => {
+  const d = new Date(t.date);
+  const type = types.find(tp => tp.name === t.type);
+  const impact = type?.impact;
+  const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  return impact === "negative" && key === currentMonthKey;
+});
+
+const donutTotals = {};
+lastMonthExpenses.forEach(t => {
+  const cat = t.category || "Sin categoría";
+  donutTotals[cat] = (donutTotals[cat] || 0) + t.amount;
+});
+
+const donutLabels = Object.keys(donutTotals);
+const donutValues = Object.values(donutTotals);
+const donutColors = donutLabels.map(cat => {
+  const c = categories.find(c => c.name === cat);
+  return c?.bg || "#e5e7eb";
+});
+
+const donutCtx = document.getElementById("expenseDonutChart");
+if (donutCtx) {
+  dashboardCharts.expenseDonut = new Chart(donutCtx, {
+    type: "doughnut",
+    data: {
+      labels: donutLabels,
+      datasets: [{
+        data: donutValues,
+        backgroundColor: donutColors
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        tooltip: {
+          callbacks: {
+            label: ctx => {
+              const label = ctx.label || "";
+              const value = ctx.raw || 0;
+              const total = donutValues.reduce((a, b) => a + b, 0);
+              const percent = total > 0 ? (value / total * 100).toFixed(1) : 0;
+              return `${label}: ${value.toFixed(2)}€ (${percent}%)`;
+            }
+          }
+        },
+        legend: { position: 'bottom' }
+      }
+    }
+  });
+}
 }
 
 
@@ -536,8 +618,8 @@ function drawExpenses() {
       </div>
     </div>
     <div class="lg:col-span-2">
-      <div class="card h-[calc(100vh-280px)] overflow-y-auto">
-        <h3 class="text-lg font-medium mb-4 sticky top-0 bg-white z-10 pt-4">Transactions</h3>
+      <div class="card h-[calc(100vh-280px)] overflow-y-auto p-6 pt-0">
+        <h3 class="text-lg font-medium mb-4 sticky top-0 bg-white z-10 p-4">Transactions</h3>
         <ul id="transaction-list" class="divide-y divide-gray-200"></ul>
       </div>
     </div>
