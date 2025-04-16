@@ -557,6 +557,7 @@
   /* Card headers with gradient accent */
   .dark .card h3 {
     background: var(--text-gradient);
+    background-clip: text;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     display: inline-block;

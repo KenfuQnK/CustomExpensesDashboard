@@ -14,7 +14,7 @@ let pendingDeleteId = null;
 let darkMode = localStorage.getItem('darkMode') === 'true';
 
 // Charts
-let dashboardCharts = {};
+window.dashboardCharts = {};
 
 //-------------------------------------------- DARK MODE
 
