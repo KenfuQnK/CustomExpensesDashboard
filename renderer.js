@@ -556,7 +556,6 @@ if (donutCtx) {
 }
 }
 
-
 function drawCharts() {
   const monthlyMap = {};
 
@@ -627,6 +626,355 @@ function drawCharts() {
     options: { responsive: true, maintainAspectRatio: false }
   });  
 
+}
+
+// Función para crear gráfico de tendencia
+function setupTrendForecastChart() {
+  // Modificar drawDashboard para añadir un nuevo gráfico de tendencia
+  const originalDrawDashboard = drawDashboard;
+  
+  drawDashboard = function() {
+    originalDrawDashboard.call(this);
+    
+    // Añadir el gráfico de tendencia
+    createTrendForecastChart();
+  };
+}
+
+// Crear y configurar el gráfico de tendencia estimada
+function createTrendForecastChart() {
+  const container = document.getElementById("dashboard-content");
+  
+  // Verificar si ya existe la sección del gráfico de tendencia
+  if (!document.getElementById('trendForecastSection')) {
+    // Crear elemento para contener el gráfico de tendencia
+    const trendSection = document.createElement('div');
+    trendSection.id = 'trendForecastSection';
+    trendSection.className = 'card lg:col-span-3 mt-6';
+    trendSection.innerHTML = `
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">Tendencia y Pronóstico</h3>
+        <div class="flex space-x-2">
+          <select id="trend-type" class="text-xs px-2 py-1 rounded border dark:border-gray-600 bg-white dark:bg-gray-700">
+            <option value="expenses">Gastos</option>
+            <option value="income">Ingresos</option>
+            <option value="balance">Balance</option>
+          </select>
+          <select id="trend-period" class="text-xs px-2 py-1 rounded border dark:border-gray-600 bg-white dark:bg-gray-700">
+            <option value="3">Próximos 3 meses</option>
+            <option value="6" selected>Próximos 6 meses</option>
+            <option value="12">Próximo año</option>
+          </select>
+          <button id="trendReset" class="text-xs px-2 py-1 rounded border dark:border-gray-600 bg-white dark:bg-gray-700">
+            <i class="fas fa-sync-alt"></i> Reset
+          </button>
+        </div>
+      </div>
+      <div class="chart-container h-80"><canvas id="trendForecastChart"></canvas></div>
+    `;
+    
+    container.appendChild(trendSection);
+    
+    // Configurar eventos para los selectores
+    setTimeout(() => {
+      document.getElementById('trend-type').addEventListener('change', updateTrendForecast);
+      document.getElementById('trend-period').addEventListener('change', updateTrendForecast);
+      document.getElementById('trendReset').addEventListener('click', () => {
+        if (dashboardCharts.trendForecast) {
+          dashboardCharts.trendForecast.resetZoom();
+        }
+      });
+      
+      // Generar el gráfico inicial
+      updateTrendForecast();
+    }, 100);
+  } else {
+    // Si ya existe, solo actualizamos los datos
+    updateTrendForecast();
+  }
+}
+
+// Actualizar los datos del gráfico de tendencia
+function updateTrendForecast() {
+  const trendType = document.getElementById('trend-type')?.value || 'expenses';
+  const forecastMonths = parseInt(document.getElementById('trend-period')?.value || 6);
+  
+  // Generar datos históricos mensuales
+  const monthlyData = generateMonthlyFinancialData(trendType);
+  
+  // Solo continuar si tenemos suficientes datos
+  if (monthlyData.values.length < 3) {
+    showNoDataWarning();
+    return;
+  }
+  
+  // Generar datos para regresión lineal
+  const regressionData = monthlyData.values.map((value, index) => [index, value]);
+  
+  // Calcular regresión lineal
+  const result = regression.linear(regressionData);
+  const gradient = result.equation[0];
+  const yIntercept = result.equation[1];
+  
+  // Generar puntos de proyección
+  const forecastData = [];
+  const forecastLabels = [];
+  const lastDataPointIndex = monthlyData.values.length - 1;
+  
+  for (let i = 0; i <= forecastMonths; i++) {
+    const x = lastDataPointIndex + i;
+    const predictedValue = gradient * x + yIntercept;
+    // No permitimos valores negativos en gastos o ingresos
+    const adjustedValue = trendType !== 'balance' && predictedValue < 0 ? 0 : predictedValue;
+    
+    forecastData.push(adjustedValue);
+    
+    const forecastDate = new Date();
+    forecastDate.setMonth(forecastDate.getMonth() + i);
+    forecastLabels.push(forecastDate.toLocaleString('default', { month: 'short', year: 'numeric' }));
+  }
+  
+  // Preparar datos para el gráfico
+  const datasets = [
+    {
+      label: getTrendTypeLabel(trendType) + ' histórico',
+      data: monthlyData.values,
+      borderColor: getTrendTypeColor(trendType, false),
+      backgroundColor: getTrendTypeColor(trendType, true),
+      pointBackgroundColor: getTrendTypeColor(trendType, false),
+      fill: true
+    },
+    {
+      label: getTrendTypeLabel(trendType) + ' proyectado',
+      data: Array(monthlyData.values.length).fill(null).concat(forecastData),
+      borderColor: 'rgba(156, 163, 175, 1)',
+      backgroundColor: 'rgba(156, 163, 175, 0.2)',
+      borderDash: [5, 5],
+      fill: true,
+      pointStyle: 'circle',
+      pointRadius: 3,
+      pointBackgroundColor: 'rgba(156, 163, 175, 1)'
+    }
+  ];
+  
+  // Destruir gráfico anterior si existe
+  if (dashboardCharts.trendForecast) {
+    dashboardCharts.trendForecast.destroy();
+  }
+  
+  // Crear nuevo gráfico
+  const ctx = document.getElementById('trendForecastChart').getContext('2d');
+  dashboardCharts.trendForecast = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: monthlyData.labels.concat(forecastLabels.slice(1)), // Eliminar el primer mes para evitar duplicado
+      datasets: datasets
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: {
+        intersect: false,
+        mode: 'index'
+      },
+      plugins: {
+        zoom: {
+          zoom: {
+            wheel: { enabled: true },
+            pinch: { enabled: true },
+            mode: 'xy'
+          },
+          pan: {
+            enabled: true,
+            mode: 'xy'
+          }
+        },
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              const label = context.dataset.label || '';
+              const value = context.parsed.y;
+              return `${label}: ${new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(value)}`;
+            },
+            footer: function(tooltipItems) {
+              const dataIndex = tooltipItems[0].dataIndex;
+              // Solo mostrar información de confianza para los datos de pronóstico
+              if (dataIndex >= monthlyData.values.length) {
+                const confidenceScore = Math.max(0, 100 - ((dataIndex - monthlyData.values.length + 1) * 10));
+                return `Confianza del pronóstico: ${confidenceScore.toFixed(0)}%`;
+              }
+              return '';
+            }
+          }
+        },
+        legend: {
+          position: 'top'
+        },
+        title: {
+          display: true,
+          text: 'Tendencia histórica y proyección futura'
+        },
+        annotation: {
+          annotations: {
+            line1: {
+              type: 'line',
+              mode: 'vertical',
+              scaleID: 'x',
+              value: monthlyData.labels.length - 1,
+              borderColor: 'rgba(166, 166, 166, 0.75)',
+              borderWidth: 2,
+              label: {
+                content: 'Ahora',
+                enabled: true,
+                position: 'top'
+              }
+            }
+          }
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: trendType !== 'balance',
+          title: {
+            display: true,
+            text: 'Importe (€)'
+          },
+          ticks: {
+            callback: function(value) {
+              return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(value);
+            }
+          }
+        }
+      }
+    }
+  });
+  
+  // Añadir anotación que señale el punto actual
+  const verticalLinePlugin = {
+    id: 'verticalLine',
+    afterDraw: (chart) => {
+      if (chart.tooltip._active && chart.tooltip._active.length) {
+        const activePoint = chart.tooltip._active[0];
+        const ctx = chart.ctx;
+        const x = activePoint.element.x;
+        const topY = chart.scales.y.top;
+        const bottomY = chart.scales.y.bottom;
+        
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(x, topY);
+        ctx.lineTo(x, bottomY);
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+  };
+  
+  Chart.register(verticalLinePlugin);
+}
+
+// Generar datos mensuales basados en las transacciones
+function generateMonthlyFinancialData(type) {
+  const monthlyMap = {};
+  
+  // Filtrar las transacciones por impacto según el tipo seleccionado
+  transactions.forEach(t => {
+    const date = new Date(t.date);
+    if (isNaN(date)) return;
+    
+    const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+    const typeObj = types.find(tp => tp.name === t.type);
+    const impact = typeObj?.impact || 'neutral';
+    
+    if (!monthlyMap[monthKey]) {
+      monthlyMap[monthKey] = { positive: 0, negative: 0, neutral: 0 };
+    }
+    
+    monthlyMap[monthKey][impact] += t.amount;
+  });
+  
+  // Ordenar meses cronológicamente
+  const sortedMonths = Object.keys(monthlyMap).sort();
+  
+  // Generar arrays de labels y valores
+  const labels = sortedMonths.map(month => {
+    const [year, monthNum] = month.split('-');
+    return new Date(parseInt(year), parseInt(monthNum) - 1).toLocaleString('default', { month: 'short', year: 'numeric' });
+  });
+  
+  let values;
+  switch (type) {
+    case 'income':
+      values = sortedMonths.map(month => monthlyMap[month].positive || 0);
+      break;
+    case 'expenses':
+      values = sortedMonths.map(month => monthlyMap[month].negative || 0);
+      break;
+    case 'balance':
+      values = sortedMonths.map(month => 
+        (monthlyMap[month].positive || 0) - 
+        (monthlyMap[month].negative || 0) + 
+        (monthlyMap[month].neutral || 0)
+      );
+      break;
+    default:
+      values = sortedMonths.map(month => monthlyMap[month].negative || 0);
+  }
+  
+  return { labels, values };
+}
+
+// Mostrar advertencia si no hay suficientes datos
+function showNoDataWarning() {
+  const ctx = document.getElementById('trendForecastChart');
+  if (!ctx) return;
+  
+  if (dashboardCharts.trendForecast) {
+    dashboardCharts.trendForecast.destroy();
+  }
+  
+  // Crear una visualización de advertencia
+  const container = ctx.parentElement;
+  container.innerHTML = `
+    <div class="flex flex-col items-center justify-center h-full">
+      <i class="fas fa-exclamation-triangle text-yellow-500 text-4xl mb-3"></i>
+      <p class="text-center text-gray-600 dark:text-gray-300">
+        No hay suficientes datos para generar una tendencia.<br>
+        Añade al menos 3 meses de transacciones.
+      </p>
+    </div>
+  `;
+}
+
+// Obtener colores según el tipo de tendencia
+function getTrendTypeColor(type, isBackground) {
+  const alpha = isBackground ? '0.2' : '1';
+  switch (type) {
+    case 'income':
+      return `rgba(34, 197, 94, ${alpha})`;
+    case 'expenses':
+      return `rgba(239, 68, 68, ${alpha})`;
+    case 'balance':
+      return `rgba(59, 130, 246, ${alpha})`;
+    default:
+      return `rgba(156, 163, 175, ${alpha})`;
+  }
+}
+
+// Obtener etiqueta según tipo de tendencia
+function getTrendTypeLabel(type) {
+  switch (type) {
+    case 'income':
+      return 'Ingresos';
+    case 'expenses':
+      return 'Gastos';
+    case 'balance':
+      return 'Balance';
+    default:
+      return 'Datos';
+  }
 }
 
 
@@ -1319,6 +1667,7 @@ function saveItemEdit(oldValue, kind) {
 document.addEventListener("DOMContentLoaded", () => {
   loadData();
   initializeDarkMode();
+  setupTrendForecastChart();
   switchTab("dashboard");
   
   // Agregar con un pequeño retraso para asegurar que el header esté cargado

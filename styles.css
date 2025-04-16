@@ -175,3 +175,59 @@
 .dark .chart-container canvas {
   filter: brightness(0.9) contrast(1.1);
 }
+
+
+/*---------------------*/
+
+/* Estilos para tooltips */
+.custom-tooltip {
+  background-color: rgba(0, 0, 0, 0.8) !important;
+  color: white !important;
+  border-radius: 4px !important;
+  padding: 8px 12px !important;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  font-family: system-ui, -apple-system, sans-serif !important;
+  z-index: 9999 !important;
+  pointer-events: none;
+  max-width: 300px !important;
+  backdrop-filter: blur(5px);
+}
+
+/* Estilos para el área de tendencia */
+#trendForecastSection {
+  margin-top: 24px;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+#trendForecastSection:hover {
+  box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+}
+
+#trendForecastSection .chart-container {
+  height: 350px;
+}
+
+#trend-type, #trend-period {
+  background-color: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+#trend-type:hover, #trend-period:hover {
+  border-color: #d1d5db;
+}
+
+.dark #trend-type, .dark #trend-period, .dark #trendReset {
+  background-color: var(--bg-secondary);
+  border-color: var(--border-color);
+  color: var(--text-primary);
+}
+
